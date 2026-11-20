@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusConnect 2.0</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4fafe; min-height: 100vh; color: #1e293b; font-weight: 600; display: flex; overflow-x: hidden; }
+        h1, h2, h3, h4, h5, h6 { color: #0c4a6e; font-weight: 800; }
+        .sidebar { width: 260px; background: #ffffff; border-right: 1px solid #e0f2fe; min-height: 100vh; padding: 20px; box-shadow: 4px 0 15px rgba(14, 165, 233, 0.05); display: none; flex-direction: column; position: fixed; z-index: 1000; }
+        .sidebar-brand { color: #0ea5e9; font-size: 1.5rem; font-weight: 800; margin-bottom: 30px; text-align: center; }
+        .nav-link-custom { color: #475569; padding: 12px 15px; border-radius: 10px; margin-bottom: 10px; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 10px; transition: all 0.3s; }
+        .nav-link-custom:hover, .nav-link-custom.active { background: #f0f9ff; color: #0ea5e9; }
+        .main-content { flex-grow: 1; padding: 30px; transition: margin-left 0.3s; width: 100%; }
+        .sidebar-active .main-content { margin-left: 260px; }
+        .topbar { display: none; justify-content: space-between; align-items: center; background: #ffffff; padding: 15px 25px; border-radius: 16px; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.05); margin-bottom: 30px; border: 1px solid #e0f2fe; }
+        .clean-card { background: #ffffff; border: 1px solid #e0f2fe; border-radius: 16px; box-shadow: 0 8px 24px rgba(14, 165, 233, 0.08); padding: 25px; transition: transform 0.3s ease, box-shadow 0.3s ease; height: 100%; }
+        .clean-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(14, 165, 233, 0.15); }
+        .form-control, .form-select { background: #f8fafc; border: 2px solid #bae6fd; color: #0f172a !important; border-radius: 10px; font-weight: 600; padding: 10px 15px; transition: all 0.3s; }
+        .form-control::placeholder { color: #94a3b8; font-weight: 500; }
+        .form-control:focus, .form-select:focus { background: #ffffff; box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15); border-color: #0ea5e9; outline: none; }
+        .btn-custom { background: #0ea5e9; border: none; color: #ffffff; border-radius: 10px; font-weight: 700; padding: 10px 20px; transition: all 0.3s; box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3); }
+        .btn-custom:hover { background: #0284c7; color: #ffffff; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(14, 165, 233, 0.4); }
+        .table { color: #1e293b; font-weight: 600; vertical-align: middle; }
+        .table thead th { color: #0c4a6e; font-weight: 800; border-bottom: 2px solid #bae6fd; }
+        .table td { border-bottom: 1px solid #f1f5f9; }
+        .view-section { display: none; animation: fadeIn 0.4s ease-out; }
+        .active-view { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .dynamic-field { max-height: 0; opacity: 0; overflow: hidden; transition: max-height 0.4s ease, opacity 0.4s ease, margin 0.4s ease; margin-bottom: 0; }
+        .dynamic-field.show { max-height: 150px; opacity: 1; margin-bottom: 1rem; }
+        .chat-box { height: 250px; overflow-y: auto; background: #f8fafc; border: 1px solid #e0f2fe; border-radius: 12px; padding: 15px; margin-bottom: 15px; }
+        .chat-msg { margin-bottom: 10px; padding: 10px 15px; border-radius: 15px; width: fit-content; max-width: 80%; font-weight: 600; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .msg-me { background: #0ea5e9; color: white; margin-left: auto; border-bottom-right-radius: 0; }
+        .msg-them { background: #e0f2fe; color: #0c4a6e; border-bottom-left-radius: 0; }
+        .badge { padding: 8px 12px; border-radius: 6px; font-weight: 700; letter-spacing: 0.3px; }
+        .badge-area { background: #e2e8f0; color: #334155; font-size: 0.75rem; border: 1px solid #cbd5e1; }
+        .badge-high { background: #ef4444; color: white; }
+        .badge-medium { background: #f59e0b; color: white; }
+        .badge-low { background: #10b981; color: white; }
+        .status-red { background: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; }
+        .status-yellow { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; } 
+        .status-green { background: #d1fae5; color: #059669; border: 1px solid #6ee7b7; } 
+        .status-gray { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+        .recording { animation: pulse 1s infinite; color: #ef4444; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        .text-muted-custom { color: #64748b; font-weight: 500; }
+        .rating-stars { color: #fbbf24; font-size: 1.5rem; cursor: pointer; }
+        .auth-container { max-width: 450px; margin: 80px auto; width: 100%; }
+        .detail-highlight-box { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 15px; border-radius: 0 8px 8px 0; margin-top: 15px; margin-bottom: 15px; font-weight: 500;}
+        div:where(.swal2-container) div:where(.swal2-popup) { border-radius: 16px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body id="body-layout">
+
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-brand"><i class="fa-solid fa-graduation-cap me-2"></i>CampusConnect</div>
+    
+    <div id="userNav" class="d-none">
+        <a href="#" class="nav-link-custom active" onclick="switchTab('userDashboard', this)"><i class="fa-solid fa-house"></i> Home Dashboard</a>
+        <a href="#" class="nav-link-custom" onclick="switchTab('userComplaints', this)"><i class="fa-solid fa-list-check"></i> My Raised Issues</a>
+    </div>
+
+    <div id="facultyNav" class="d-none mt-3 border-top border-info pt-3">
+        <small class="text-muted-custom fw-bold px-3 text-uppercase" style="font-size:0.7rem;">Staff Actions</small>
+        <a href="#" class="nav-link-custom mt-2" onclick="switchTab('facultyTasks', this)"><i class="fa-solid fa-briefcase"></i> Assigned Tasks</a>
+    </div>
+
+    <div id="adminNav" class="d-none">
+        <a href="#" class="nav-link-custom active" onclick="switchTab('adminDashboard', this)"><i class="fa-solid fa-chart-pie"></i> Analytics Dashboard</a>
+        <a href="#" class="nav-link-custom" onclick="switchTab('adminComplaints', this)"><i class="fa-solid fa-list-check"></i> Manage Complaints</a>
+        <a href="#" class="nav-link-custom" onclick="switchTab('adminReports', this)"><i class="fa-solid fa-file-export"></i> System Reports</a>
+    </div>
+
+    <div class="mt-auto">
+        <button class="btn btn-danger w-100 fw-bold" onclick="logout()"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</button>
+    </div>
+</div>
+
+<div class="main-content">
+    <div class="topbar" id="topbar">
+        <h4 class="mb-0 text-primary fw-bold" id="pageTitle">Dashboard</h4>
+        <div class="d-flex align-items-center gap-3">
+            <span class="badge bg-primary fs-6" id="roleBadge"></span>
+            <div class="fw-bold" style="color: #0c4a6e;" id="userInfo"></div>
+        </div>
+    </div>
+
+    <div id="loginView" class="view-section active-view auth-container">
+        <div class="clean-card text-center">
+            <div class="mb-4"><i class="fa-solid fa-shield-halved fa-3x" style="color: #0ea5e9;"></i></div>
+            
+            <ul class="nav nav-pills nav-fill mb-4" id="authTabs" role="tablist">
+                <li class="nav-item"><button class="nav-link active fw-bold" data-bs-toggle="tab" data-bs-target="#loginTab">Login</button></li>
+                <li class="nav-item"><button class="nav-link fw-bold" data-bs-toggle="tab" data-bs-target="#registerTab">Register</button></li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="loginTab">
+                    <h4 class="mb-4 text-primary">Secure Login</h4>
+                    <form id="loginForm" onsubmit="event.preventDefault(); login();">
+                        <input type="text" id="loginUsername" class="form-control mb-3" placeholder="Email / Username" required>
+                        <input type="password" id="loginPassword" class="form-control mb-4" placeholder="Password" required>
+                        <button type="submit" class="btn btn-custom w-100 mb-2"><i class="fa-solid fa-lock me-2"></i> Login</button>
+                    </form>
+                </div>
+                <div class="tab-pane fade" id="registerTab">
+                    <h4 class="mb-4 text-primary">New Registration</h4>
+                    <form id="registerForm" onsubmit="event.preventDefault(); register();">
+                        <select id="regRole" class="form-select mb-3" required onchange="toggleRegFields()">
+                            <option value="Student" selected>Register as Student</option>
+                            <option value="Faculty">Register as Faculty</option>
+                        </select>
+
+                        <input type="text" id="regName" class="form-control mb-3" placeholder="Full Name" required>
+                        <input type="text" id="regUsername" class="form-control mb-3" placeholder="Create Username" required>
+                        
+                        <div id="studentFields" class="dynamic-field show">
+                            <input type="text" id="regStudentId" class="form-control" placeholder="Student ID (Roll Number)" required>
+                        </div>
+
+                        <div id="facultyFields" class="dynamic-field">
+                            <select id="regDept" class="form-select">
+                                <option value="" disabled selected>Select Department</option>
+                                <option value="Computer Science">Computer Science</option>
+                                <option value="Information Technology (IT)">Information Technology (IT)</option>
+                                <option value="Biotechnology">Biotechnology</option>
+                                <option value="Animation">Animation</option>
+                                <option value="Cyber Security">Cyber Security</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <input type="password" id="regPassword" class="form-control mb-4" placeholder="Create Password" required minlength="6">
+                        <button type="submit" class="btn btn-custom w-100 mb-2"><i class="fa-solid fa-user-plus me-2"></i> Register Account</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="userDashboard" class="view-section">
+        <div class="row">
+            <div class="col-md-7">
+                <div class="clean-card mb-4">
+                    <h5 class="mb-3"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i>Submit New Issue</h5>
+                    <p class="small text-muted-custom mb-3">AI will auto-determine priority. Please manually select the exact area.</p>
+                    
+                    <input type="text" id="c_title" class="form-control mb-3" placeholder="Issue Title" required>
+                    
+                    <select id="c_area" class="form-select mb-3" required>
+                        <option value="" disabled selected>Select Complaint Area / Location</option>
+                        <option value="Classroom (Indoor College)">Classroom (Indoor College)</option>
+                        <option value="Hostel">Hostel</option>
+                        <option value="Faculty / Academic">Faculty / Academic</option>
+                        <option value="Laboratory">Laboratory</option>
+                        <option value="Library">Library</option>
+                        <option value="Campus / Outdoor">Campus / Outdoor</option>
+                        <option value="Mess / Canteen">Mess / Canteen</option>
+                        <option value="Others">Others</option>
+                    </select>
+
+                    <div class="position-relative mb-3">
+                        <textarea id="c_desc" class="form-control" rows="4" placeholder="Describe your issue in detail..." required></textarea>
+                        <button type="button" class="btn btn-link position-absolute bottom-0 end-0" style="color: #0ea5e9;" onclick="startVoice()"><i id="micIcon" class="fa-solid fa-microphone fs-5"></i></button>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div style="flex:1" class="me-3">
+                            <label class="form-label text-muted-custom small fw-bold mb-1"><i class="fa-solid fa-paperclip me-1"></i> Proof (Optional)</label>
+                            <input type="file" id="c_file" class="form-control form-control-sm">
+                        </div>
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input" type="checkbox" id="c_anonymous">
+                            <label class="form-check-label small fw-bold text-muted-custom" for="c_anonymous">Submit Anonymously</label>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-custom w-100" onclick="submitComplaint()"><i class="fa-solid fa-paper-plane me-2"></i> Submit Issue</button>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="clean-card text-center mb-4">
+                    <h6 class="mb-3 text-muted-custom"><i class="fa-solid fa-qrcode me-2"></i>Mobile Submission</h6>
+                    <div id="qrcode" class="d-flex justify-content-center bg-white p-3 rounded border border-light" style="width:fit-content; margin:auto;"></div>
+                </div>
+                <div class="clean-card">
+                    <h6 class="mb-3 text-primary"><i class="fa-solid fa-chart-line me-2"></i>My Submission Stats</h6>
+                    <div class="d-flex justify-content-between text-center mt-3">
+                        <div><h3 class="text-danger mb-0" id="statPending">0</h3><small class="text-muted-custom">Pending</small></div>
+                        <div><h3 class="text-warning mb-0" id="statProcess">0</h3><small class="text-muted-custom">In Process</small></div>
+                        <div><h3 class="text-success mb-0" id="statResolved">0</h3><small class="text-muted-custom">Resolved</small></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="userComplaints" class="view-section">
+        <div class="clean-card h-100">
+            <h5 class="mb-4"><i class="fa-solid fa-list-check me-2 text-primary"></i>My Raised Issues</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead><tr><th>ID</th><th>Complaint Area</th><th>Assigned Faculty</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="userTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="facultyTasks" class="view-section">
+        <div class="clean-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0"><i class="fa-solid fa-briefcase me-2 text-primary"></i>My Assigned Tasks</h5>
+                <span class="badge bg-primary" id="workloadBadge">Workload: 0 active</span>
+            </div>
+            
+            <div class="row g-2 mb-4 bg-light p-3 rounded border border-light">
+                <div class="col-md-4">
+                    <select id="facultyFilterArea" class="form-select" onchange="applyFacultyFilters()">
+                        <option value="All">All Areas</option>
+                        <option value="Classroom (Indoor College)">Classroom</option>
+                        <option value="Hostel">Hostel</option>
+                        <option value="Faculty / Academic">Faculty / Academic</option>
+                        <option value="Laboratory">Laboratory</option>
+                        <option value="Library">Library</option>
+                        <option value="Campus / Outdoor">Campus</option>
+                        <option value="Mess / Canteen">Mess / Canteen</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead><tr><th>Issue ID & Priority</th><th>Submitted By</th><th>Complaint Area</th><th>Status Control</th><th>Actions</th></tr></thead>
+                    <tbody id="facultyTasksBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminDashboard" class="view-section">
+        <div class="row mb-4">
+            <div class="col-md-4"><div class="clean-card text-center p-4"><div class="text-muted-custom fw-bold mb-2">Total Complaints</div><h2 class="text-primary fw-bold" id="totalComp">0</h2></div></div>
+            <div class="col-md-4"><div class="clean-card text-center p-4"><div class="text-muted-custom fw-bold mb-2">Pending Resolution</div><h2 class="text-danger fw-bold" id="pendingComp">0</h2></div></div>
+            <div class="col-md-4"><div class="clean-card text-center p-4"><div class="text-muted-custom fw-bold mb-2">Successfully Resolved</div><h2 class="text-success fw-bold" id="resolvedComp">0</h2></div></div>
+        </div>
+        <div class="clean-card d-flex flex-column align-items-center">
+            <h5 class="mb-4 w-100 text-start"><i class="fa-solid fa-chart-pie me-2 text-primary"></i>Area Distribution</h5>
+            <div style="position: relative; height: 350px; width: 100%; max-width: 600px;"><canvas id="categoryChart"></canvas></div>
+        </div>
+    </div>
+
+    <div id="adminComplaints" class="view-section">
+        <div class="clean-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0"><i class="fa-solid fa-database me-2 text-primary"></i>Manage Complaints</h5>
+            </div>
+            
+            <div class="row g-2 mb-4 bg-light p-3 rounded border border-light">
+                <div class="col-md-4"><input type="text" id="filterSearch" class="form-control" placeholder="Search Keyword..." onkeyup="applyAdminFilters()"></div>
+                <div class="col-md-4">
+                    <select id="filterArea" class="form-select" onchange="applyAdminFilters()">
+                        <option value="All">All Areas</option>
+                        <option value="Classroom (Indoor College)">Classroom</option>
+                        <option value="Hostel">Hostel</option>
+                        <option value="Faculty / Academic">Faculty / Academic</option>
+                        <option value="Laboratory">Laboratory</option>
+                        <option value="Library">Library</option>
+                        <option value="Campus / Outdoor">Campus</option>
+                        <option value="Mess / Canteen">Mess / Canteen</option>
+                        <option value="Others">Others</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select id="filterStatus" class="form-select" onchange="applyAdminFilters()">
+                        <option value="All">All Statuses</option><option value="Submitted">Submitted</option>
+                        <option value="Under Review">Under Review</option><option value="In Process">In Process</option>
+                        <option value="Escalated">Escalated</option><option value="Resolved">Resolved</option><option value="Closed">Closed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive" style="max-height: 500px; overflow-y:auto;">
+                <table class="table table-hover">
+                    <thead><tr><th>ID & Priority</th><th>Submitter Info</th><th>Complaint Area</th><th>Assign Faculty</th><th>Workflow Status</th><th>Actions</th></tr></thead>
+                    <tbody id="adminTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminReports" class="view-section">
+        <div class="clean-card">
+            <h5 class="mb-4"><i class="fa-solid fa-file-export me-2 text-primary"></i>Generate Reports</h5>
+            <div class="p-4 border border-info rounded bg-light text-center" style="max-width: 400px;">
+                <i class="fa-solid fa-file-csv fa-3x text-success mb-3"></i>
+                <h6 class="fw-bold text-dark">Full System Report</h6>
+                <button class="btn btn-success fw-bold w-100 mt-2" onclick="exportToCSV()"><i class="fa-solid fa-download me-2"></i> Download CSV</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content clean-card border-0" style="border-radius: 16px;">
+            <div class="modal-header border-bottom border-info border-opacity-25 pb-3">
+                <h5 class="modal-title text-primary fw-bold"><i class="fa-solid fa-file-lines me-2"></i>Complaint Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4 id="detTitle" class="fw-bold text-dark mb-1"></h4>
+                        <div class="mb-3">
+                            <span id="detArea" class="badge badge-area me-2"></span>
+                            <span id="detPriority" class="badge"></span>
+                            <span id="detStatus" class="badge ms-2"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <small class="text-muted-custom fw-bold d-block">Submitted On:</small>
+                        <span id="detDate" class="fw-bold"></span>
+                    </div>
+                </div>
+                
+                <div class="detail-highlight-box">
+                    <h6 class="fw-bold text-primary mb-2">Description</h6>
+                    <span id="detDesc"></span>
+                </div>
+                
+                <div class="row mt-4 border-top pt-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted-custom fw-bold mb-2">Submitter Details</h6>
+                        <div id="detSubmitterInfo"></div>
+                    </div>
+                    <div class="col-md-6 text-md-end" id="detFileContainer">
+                        <h6 class="text-muted-custom fw-bold mb-2">Attached Proof</h6>
+                        <a id="detFileLink" href="#" target="_blank" class="btn btn-sm btn-outline-primary fw-bold"><i class="fa-solid fa-paperclip me-1"></i> View Attachment</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="chatModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content clean-card border-0" style="border-radius: 16px;">
+            <div class="modal-header border-bottom border-info border-opacity-25 pb-3">
+                <h5 class="modal-title text-primary fw-bold"><i class="fa-regular fa-comments me-2"></i>Communication - Issue #<span id="chatCId"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="chat-box" id="chatBox"></div>
+                <div class="d-flex gap-2 mt-3">
+                    <input type="text" id="chatInput" class="form-control" placeholder="Type your response...">
+                    <button class="btn btn-custom px-4" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="feedbackModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content clean-card border-0" style="border-radius: 16px;">
+            <div class="modal-header border-bottom border-info border-opacity-25 pb-3">
+                <h5 class="modal-title text-primary fw-bold"><i class="fa-solid fa-star-half-stroke me-2"></i>Resolution Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3 text-center">
+                <p class="text-muted-custom fw-bold mb-2">How satisfied are you with the resolution of Issue #<span id="feedbackCId"></span>?</p>
+                <div class="rating-stars mb-4" id="starContainer">
+                    <i class="fa-solid fa-star" onclick="setRating(1)"></i><i class="fa-solid fa-star" onclick="setRating(2)"></i>
+                    <i class="fa-solid fa-star" onclick="setRating(3)"></i><i class="fa-solid fa-star" onclick="setRating(4)"></i>
+                    <i class="fa-solid fa-star" onclick="setRating(5)"></i>
+                </div>
+                <input type="hidden" id="feedbackRating" value="5">
+                <textarea id="feedbackText" class="form-control mb-3" rows="3" placeholder="Leave an optional comment..."></textarea>
+                <button class="btn btn-success w-100 fw-bold" onclick="submitFeedback()"><i class="fa-solid fa-check me-2"></i>Submit Feedback & Close Ticket</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let currentUser = null;
+    let currentLang = 'en';
+    const socket = io();
+    let chartInstance = null;
+    let activeChatId = null;
+    let allComplaintsData = [];
+    let allFacultyList = []; 
+
+    function getStatusClass(status) {
+        if(['Submitted', 'Escalated'].includes(status)) return 'status-red';
+        if(['Under Review', 'In Process'].includes(status)) return 'status-yellow';
+        if(status === 'Resolved') return 'status-green';
+        if(status === 'Closed') return 'status-gray';
+        return 'bg-secondary text-white';
+    }
+
+    function showSection(viewId) {
+        document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active-view'));
+        document.getElementById(viewId).classList.add('active-view');
+        
+        if(viewId !== 'loginView') {
+            document.getElementById('sidebar').style.display = 'flex';
+            document.getElementById('topbar').style.display = 'flex';
+            document.getElementById('body-layout').classList.add('sidebar-active');
+        } else {
+            document.getElementById('sidebar').style.display = 'none';
+            document.getElementById('topbar').style.display = 'none';
+            document.getElementById('body-layout').classList.remove('sidebar-active');
+        }
+    }
+
+    function switchTab(viewId, element) {
+        document.querySelectorAll('.nav-link-custom').forEach(el => el.classList.remove('active'));
+        if(element) element.classList.add('active');
+        showSection(viewId);
+        
+        let title = "Dashboard";
+        if(viewId.includes('Complaints')) title = "Manage Complaints";
+        if(viewId.includes('Reports')) title = "System Reports";
+        if(viewId === 'facultyTasks') title = "Assigned Faculty Tasks";
+        document.getElementById('pageTitle').innerText = title;
+        
+        if(viewId === 'adminDashboard') updateAdminDashboardStats();
+    }
+
+    function toggleRegFields() {
+        const role = document.getElementById('regRole').value;
+        const stuFields = document.getElementById('studentFields');
+        const facFields = document.getElementById('facultyFields');
+        
+        if (role === 'Student') {
+            stuFields.classList.add('show');
+            facFields.classList.remove('show');
+            document.getElementById('regStudentId').required = true;
+            document.getElementById('regDept').required = false;
+        } else {
+            stuFields.classList.remove('show');
+            facFields.classList.add('show');
+            document.getElementById('regStudentId').required = false;
+            document.getElementById('regDept').required = true;
+        }
+    }
+
+    async function login() {
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+        
+        if (!username || !password) {
+            return Swal.fire({ icon: 'warning', title: 'Missing Input', text: 'Please fill out all required fields.' });
+        }
+
+        const res = await fetch('/api/login', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: username, password}) 
+        });
+        
+        if (res.ok) {
+            currentUser = await res.json();
+            setupUserSession();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Access Denied',
+                text: 'Invalid Username or Password. Please try again.',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+    }
+
+    async function register() {
+        const role = document.getElementById('regRole').value;
+        const name = document.getElementById('regName').value;
+        const username = document.getElementById('regUsername').value;
+        const password = document.getElementById('regPassword').value;
+        
+        if (!name || !username || !password) {
+            return Swal.fire({ icon: 'warning', title: 'Missing Input', text: 'Please fill out all required fields.' });
+        }
+
+        const data = { role, name, username, password };
+
+        if (role === 'Faculty') {
+            const dept = document.getElementById('regDept').value;
+            if(!dept) return Swal.fire({ icon: 'warning', title: 'Department Required', text: 'Please select your department.' });
+            data.department = dept;
+        } else {
+            const stuId = document.getElementById('regStudentId').value;
+            if(!stuId) return Swal.fire({ icon: 'warning', title: 'Student ID Required', text: 'Please enter your Roll Number.' });
+            data.student_roll = stuId;
+        }
+
+        const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+
+        if (res.ok) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Registration Successful 🎉',
+                text: `Welcome, ${data.name}! You can now login.`,
+                confirmButtonColor: '#0ea5e9'
+            }).then(() => {
+                const triggerEl = document.querySelector('#authTabs button[data-bs-target="#loginTab"]');
+                bootstrap.Tab.getInstance(triggerEl).show();
+                document.getElementById('loginUsername').value = data.username;
+                document.getElementById('registerForm').reset();
+                toggleRegFields();
+            });
+        } else {
+            const err = await res.json(); 
+            Swal.fire({
+                icon: 'error',
+                title: 'Registration Failed',
+                text: err.error || "An unknown error occurred.",
+                confirmButtonColor: '#0ea5e9'
+            });
+        }
+    }
+
+    async function setupUserSession() {
+        document.getElementById('userInfo').innerHTML = `<i class="fa-regular fa-circle-user me-1"></i> ${currentUser.name}`;
+        document.getElementById('roleBadge').innerText = currentUser.role;
+        
+        if (currentUser.role === 'Admin') {
+            await fetchFacultyList(); 
+            document.getElementById('userNav').classList.add('d-none');
+            document.getElementById('facultyNav').classList.add('d-none');
+            document.getElementById('adminNav').classList.remove('d-none');
+            socket.emit('join', {room: 'admin_room'});
+            loadAdminData();
+            switchTab('adminDashboard', document.querySelector('#adminNav a:first-child'));
+            
+        } else if (currentUser.role === 'Faculty') {
+            document.getElementById('adminNav').classList.add('d-none');
+            document.getElementById('userNav').classList.remove('d-none');
+            document.getElementById('facultyNav').classList.remove('d-none');
+            loadUserData(); 
+            loadFacultyTasks(); 
+            document.getElementById("qrcode").innerHTML = ""; 
+            new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 120, height: 120, colorDark: "#0ea5e9", colorLight: "#ffffff" });
+            switchTab('userDashboard', document.querySelector('#userNav a:first-child'));
+            
+        } else { 
+            document.getElementById('adminNav').classList.add('d-none');
+            document.getElementById('facultyNav').classList.add('d-none');
+            document.getElementById('userNav').classList.remove('d-none');
+            loadUserData();
+            document.getElementById("qrcode").innerHTML = ""; 
+            new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 120, height: 120, colorDark: "#0ea5e9", colorLight: "#ffffff" });
+            switchTab('userDashboard', document.querySelector('#userNav a:first-child'));
+        }
+    }
+
+    function logout() { currentUser = null; showSection('loginView'); }
+
+    async function submitComplaint() {
+        const title = document.getElementById('c_title').value;
+        const area = document.getElementById('c_area').value;
+        const desc = document.getElementById('c_desc').value;
+        const isAnon = document.getElementById('c_anonymous').checked;
+        if(!title || !area || !desc) {
+            return Swal.fire({ icon: 'warning', title: 'Missing Information', text: 'Please fill all required fields, including the exact Complaint Area.' });
+        }
+
+        const formData = new FormData();
+        formData.append('submitter_id', currentUser.id);
+        formData.append('submitter_role', currentUser.role);
+        formData.append('title', title);
+        formData.append('area', area);
+        formData.append('description', desc);
+        formData.append('is_anonymous', isAnon);
+        
+        const fileInput = document.getElementById('c_file');
+        if(fileInput.files.length > 0) formData.append('proof_file', fileInput.files[0]);
+
+        const res = await fetch('/api/complaints', { method: 'POST', body: formData });
+        const result = await res.json();
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Issue Submitted!',
+            html: `Your issue has been logged.<br><b>Area:</b> ${result.area}<br><b>Auto-Priority:</b> ${result.priority}`,
+            confirmButtonColor: '#0ea5e9',
+            timer: 3000
+        });
+
+        document.getElementById('c_title').value = '';
+        document.getElementById('c_area').value = '';
+        document.getElementById('c_desc').value = '';
+        document.getElementById('c_anonymous').checked = false;
+        fileInput.value = '';
+        
+        loadUserData();
+        switchTab('userComplaints', document.querySelector('#userNav a:nth-child(2)'));
+    }
+
+    async function loadUserData() {
+        const res = await fetch(`/api/complaints?user_id=${currentUser.id}&role=${currentUser.role}`);
+        allComplaintsData = await res.json();
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+        
+        const submittedByMe = allComplaintsData.filter(c => c.submitter_id === currentUser.id && c.submitter_role === currentUser.role);
+        
+        let p=0, ip=0, r=0;
+        submittedByMe.forEach(c => {
+            socket.emit('join', {room: `complaint_${c.id}`});
+            if(['Submitted','Escalated'].includes(c.status)) p++;
+            else if(['Under Review','In Process'].includes(c.status)) ip++;
+            else if(['Resolved','Closed'].includes(c.status)) r++;
+
+            let actHtml = `
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-info fw-bold" onclick="openDetails(${c.id})"><i class="fa-solid fa-eye"></i> Details</button>
+                    <button class="btn btn-sm btn-outline-primary fw-bold" onclick="openChat(${c.id})"><i class="fa-solid fa-comment-dots"></i> Chat</button>
+                </div>`;
+            if(c.status === 'Resolved') actHtml += ` <button class="btn btn-sm btn-success fw-bold ms-1" onclick="openFeedback(${c.id})"><i class="fa-solid fa-star"></i> Feedback</button>`;
+
+            tbody.innerHTML += `<tr>
+                <td class="fw-bold text-primary">#${c.id}</td>
+                <td><span class="badge badge-area"><i class="fa-solid fa-location-dot me-1"></i>${c.area}</span></td>
+                <td class="text-muted-custom small">${c.assigned_faculty_name || 'Unassigned'}</td>
+                <td><span class="badge badge-${c.priority.toLowerCase()}">${c.priority}</span></td>
+                <td id="status_${c.id}"><span class="badge ${getStatusClass(c.status)}">${c.status}</span></td>
+                <td>${actHtml}</td>
+            </tr>`;
+        });
+        document.getElementById('statPending').innerText = p; document.getElementById('statProcess').innerText = ip; document.getElementById('statResolved').innerText = r;
+    }
+
+    async function loadFacultyTasks() {
+        const res = await fetch(`/api/complaints?user_id=${currentUser.id}&role=Faculty`);
+        const complaints = await res.json();
+        
+        complaints.forEach(c => {
+            if(!allComplaintsData.find(x => x.id === c.id)) allComplaintsData.push(c);
+        });
+
+        const tbody = document.getElementById('facultyTasksBody');
+        tbody.innerHTML = '';
+        
+        const assignedToMe = complaints.filter(c => c.assigned_faculty_id === currentUser.id);
+        document.getElementById('workloadBadge').innerText = `Workload: ${assignedToMe.length} active`;
+
+        assignedToMe.forEach(c => {
+            socket.emit('join', {room: `complaint_${c.id}`});
+            
+            let statusOpts = ['Under Review', 'In Process', 'Resolved'].map(s => `<option value="${s}" ${c.status === s ? 'selected' : ''}>${s}</option>`).join('');
+            if(!['Under Review', 'In Process', 'Resolved'].includes(c.status)) { statusOpts = `<option value="${c.status}" selected disabled>${c.status}</option>` + statusOpts; }
+
+            let identityHtml = `<div class="fw-bold text-dark">${c.student_name}</div><div class="small text-muted-custom">Role: ${c.submitter_role} | ID: ${c.student_roll || 'N/A'}</div>`;
+            if (c.student_name === 'Anonymous User') {
+                identityHtml = `<div class="fw-bold text-secondary fst-italic"><i class="fa-solid fa-user-secret me-1"></i>Anonymous User</div><div class="small text-muted-custom">Identity Hidden</div>`;
+            }
+
+            tbody.innerHTML += `
+                <tr class="faculty-task-row" data-area="${c.area}">
+                    <td><span class="fw-bold text-primary">#${c.id}</span><br><span class="badge badge-${c.priority.toLowerCase()} mt-1" style="font-size: 0.7rem;">${c.priority} Priority</span></td>
+                    <td>${identityHtml}</td>
+                    <td><span class="badge badge-area"><i class="fa-solid fa-location-dot me-1"></i>${c.area}</span><br><small class="text-muted-custom">${c.date_submitted.split(' ')[0]}</small></td>
+                    <td><select class="form-select form-select-sm fw-bold border-primary text-primary" onchange="updateStatus(${c.id}, this.value)">${statusOpts}</select></td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-info fw-bold" onclick="openDetails(${c.id})"><i class="fa-solid fa-eye"></i> Details</button>
+                            <button class="btn btn-sm btn-custom" onclick="openChat(${c.id})"><i class="fa-solid fa-comment-dots"></i> Chat</button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    function applyFacultyFilters() {
+        const area = document.getElementById('facultyFilterArea').value;
+        document.querySelectorAll('.faculty-task-row').forEach(row => {
+            const matchArea = (area === 'All' || row.getAttribute('data-area') === area);
+            row.style.display = matchArea ? '' : 'none';
+        });
+    }
+
+    async function fetchFacultyList() {
+        const res = await fetch('/api/faculty');
+        allFacultyList = await res.json();
+    }
+
+    async function loadAdminData() {
+        const res = await fetch(`/api/complaints?role=Admin`);
+        allComplaintsData = await res.json();
+        renderAdminTable();
+    }
+
+    function renderAdminTable() {
+        const tbody = document.getElementById('adminTableBody');
+        tbody.innerHTML = '';
+        
+        allComplaintsData.forEach(c => {
+            socket.emit('join', {room: `complaint_${c.id}`});
+            
+            let assignOpts = `<option value="">Unassigned</option>` + allFacultyList.map(f => `<option value="${f.faculty_id}" ${c.assigned_faculty_id === f.faculty_id ? 'selected' : ''}>${f.name} (${f.department})</option>`).join('');
+            let statusOpts = ['Submitted', 'Under Review', 'In Process', 'Escalated', 'Resolved', 'Closed'].map(s => `<option value="${s}" ${c.status === s ? 'selected' : ''}>${s}</option>`).join('');
+            
+            let identityHtml = `<div class="fw-bold text-dark">${c.student_name}</div><div class="small text-muted-custom">${c.submitter_role} | ID: ${c.student_roll || 'N/A'}</div>`;
+            if(c.is_anonymous) {
+                identityHtml += `<span class="badge bg-secondary mt-1" style="font-size: 0.6rem;"><i class="fa-solid fa-user-secret"></i> Masked from Faculty</span>`;
+            }
+
+            tbody.innerHTML += `
+                <tr class="complaint-row" data-area="${c.area}" data-status="${c.status}" data-search="${(c.student_name + ' ' + c.title).toLowerCase()}">
+                    <td><span class="fw-bold text-primary">#${c.id}</span><br><span class="badge badge-${c.priority.toLowerCase()} mt-1" style="font-size: 0.7rem;">${c.priority} Priority</span></td>
+                    <td>${identityHtml}</td>
+                    <td><span class="badge badge-area"><i class="fa-solid fa-location-dot me-1"></i>${c.area}</span><br><small class="text-muted-custom">${c.date_submitted.split(' ')[0]}</small></td>
+                    <td><select class="form-select form-select-sm" onchange="updateAssignment(${c.id}, this.value)">${assignOpts}</select></td>
+                    <td><select class="form-select form-select-sm fw-bold border-primary text-primary" onchange="updateStatus(${c.id}, this.value)">${statusOpts}</select></td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-info fw-bold" onclick="openDetails(${c.id})"><i class="fa-solid fa-eye"></i> Details</button>
+                            <button class="btn btn-sm btn-custom" onclick="openChat(${c.id})"><i class="fa-solid fa-comment-dots"></i> Chat</button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+        updateAdminDashboardStats();
+    }
+
+    function applyAdminFilters() {
+        const search = document.getElementById('filterSearch').value.toLowerCase();
+        const area = document.getElementById('filterArea').value;
+        const stat = document.getElementById('filterStatus').value;
+
+        document.querySelectorAll('.complaint-row').forEach(row => {
+            const matchSearch = row.getAttribute('data-search').includes(search);
+            const matchArea = (area === 'All' || row.getAttribute('data-area') === area);
+            const matchStat = (stat === 'All' || row.getAttribute('data-status') === stat);
+            row.style.display = (matchSearch && matchArea && matchStat) ? '' : 'none';
+        });
+    }
+
+    async function updateStatus(id, status) {
+        await fetch(`/api/complaints/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status}) });
+        
+        if (currentUser.role === 'Admin') {
+            const comp = allComplaintsData.find(c => c.id == id);
+            if(comp) comp.status = status;
+            updateAdminDashboardStats();
+        } else if (currentUser.role === 'Faculty') {
+            loadFacultyTasks();
+        }
+    }
+
+    async function updateAssignment(id, faculty_id) {
+        await fetch(`/api/complaints/${id}/assign`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({assigned_faculty_id: faculty_id}) });
+        const comp = allComplaintsData.find(c => c.id == id);
+        if(comp) comp.assigned_faculty_id = faculty_id ? parseInt(faculty_id) : null;
+    }
+
+    function updateAdminDashboardStats() {
+        let p=0, r=0; const areas={};
+        allComplaintsData.forEach(c => {
+            if(['Submitted','Escalated','Under Review'].includes(c.status)) p++;
+            if(['Resolved','Closed'].includes(c.status)) r++;
+            areas[c.area] = (areas[c.area] || 0) + 1;
+        });
+
+        document.getElementById('totalComp').innerText = allComplaintsData.length;
+        document.getElementById('pendingComp').innerText = p; document.getElementById('resolvedComp').innerText = r;
+
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            type: 'doughnut', data: { labels: Object.keys(areas), datasets: [{ data: Object.values(areas), backgroundColor: ['#0ea5e9', '#38bdf8', '#7dd3fc', '#bae6fd', '#0284c7', '#0369a1'], borderWidth: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
+        });
+    }
+
+    function exportToCSV() {
+        let csv = "Complaint ID,Submitter Name,Role,Department/ID,Area,Priority,Status,Assigned Staff,Date Submitted\r\n";
+        allComplaintsData.forEach(r => {
+            let name = r.is_anonymous ? `[ANON] ${r.student_name}` : r.student_name;
+            let dept_id = r.submitter_role === 'Student' ? r.student_roll : r.department;
+            csv += `${r.id},"${name}","${r.submitter_role}","${dept_id || 'N/A'}","${r.area}","${r.priority}","${r.status}","${r.assigned_faculty_name || 'Unassigned'}","${r.date_submitted}"\r\n`;
+        });
+        const link = document.createElement("a"); link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
+        link.download = `CampusConnect_Report_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    function openDetails(cId) {
+        const c = allComplaintsData.find(x => x.id === cId);
+        if(!c) return;
+
+        document.getElementById('detTitle').innerText = c.title;
+        document.getElementById('detArea').innerHTML = `<i class="fa-solid fa-location-dot me-1"></i>${c.area}`;
+        document.getElementById('detPriority').className = `badge badge-${c.priority.toLowerCase()}`;
+        document.getElementById('detPriority').innerText = `${c.priority} Priority`;
+        document.getElementById('detStatus').className = `badge ms-2 ${getStatusClass(c.status)}`;
+        document.getElementById('detStatus').innerText = c.status;
+        document.getElementById('detDate').innerText = c.date_submitted;
+        document.getElementById('detDesc').innerText = c.description;
+
+        let idDeptString = c.submitter_role === 'Student' ? `ID: ${c.student_roll || 'N/A'}` : `Department: ${c.department || 'N/A'}`;
+        let subHtml = `<div class="fw-bold text-dark fs-5">${c.student_name}</div>
+                       <div class="text-muted-custom">Role: ${c.submitter_role}</div>
+                       <div class="text-muted-custom">${idDeptString}</div>`;
+        
+        if (c.student_name === 'Anonymous User') {
+             subHtml = `<div class="fw-bold text-secondary fs-5 fst-italic"><i class="fa-solid fa-user-secret me-2"></i>Anonymous User</div>
+                        <div class="text-muted-custom">Identity Protected</div>`;
+        } else if (currentUser.role === 'Admin' && c.is_anonymous) {
+             subHtml = `<div class="fw-bold text-dark fs-5">${c.student_name} <span class="badge bg-secondary ms-2" style="font-size:0.6rem;"><i class="fa-solid fa-user-secret"></i> Submitted Anonymously</span></div>
+                        <div class="text-muted-custom">Role: ${c.submitter_role}</div>
+                        <div class="text-muted-custom">${idDeptString}</div>`;
+        }
+        document.getElementById('detSubmitterInfo').innerHTML = subHtml;
+
+        if(c.file_path) {
+            document.getElementById('detFileContainer').classList.remove('d-none');
+            document.getElementById('detFileLink').href = `/uploads/${c.file_path}`;
+        } else {
+            document.getElementById('detFileContainer').classList.add('d-none');
+        }
+
+        new bootstrap.Modal(document.getElementById('detailsModal')).show();
+    }
+
+    socket.on('status_update', (data) => {
+        const el = document.getElementById(`status_${data.complaint_id}`);
+        if(el) {
+            el.innerHTML = `<span class="badge ${getStatusClass(data.status)}">${data.status}</span>`;
+            if(['Student', 'Faculty'].includes(currentUser?.role)) { 
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: `Complaint #${data.complaint_id} is now ${data.status}`,
+                    showConfirmButton: false,
+                    timer: 3000
+                });
+                if(currentUser.role === 'Student' || document.getElementById('userNav').classList.contains('d-none') === false) {
+                    loadUserData(); 
+                } else {
+                    loadFacultyTasks();
+                }
+            }
+        }
+    });
+
+    socket.on('receive_message', (data) => { if(activeChatId === data.complaint_id) appendMessage(data.sender_name, data.message); });
+
+    async function openChat(cId) {
+        activeChatId = cId; document.getElementById('chatCId').innerText = cId;
+        const res = await fetch(`/api/chat/${cId}`);
+        const msgs = await res.json();
+        document.getElementById('chatBox').innerHTML = '';
+        msgs.forEach(m => appendMessage(m.sender_name, m.message));
+        new bootstrap.Modal(document.getElementById('chatModal')).show();
+    }
+
+    function appendMessage(sender, text) {
+        const box = document.getElementById('chatBox');
+        box.innerHTML += `<div class="chat-msg ${sender === currentUser.name ? 'msg-me' : 'msg-them'}"><small style="opacity:0.8; font-weight:800; font-size:0.75rem;">${sender}</small><br>${text}</div>`;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('chatInput');
+        if(!input.value.trim()) return;
+        const payload = { complaint_id: activeChatId, sender_name: currentUser.name, message: input.value };
+        socket.emit('send_message', payload);
+        input.value = '';
+    }
+
+    function openFeedback(id) {
+        document.getElementById('feedbackCId').innerText = id; document.getElementById('feedbackText').value = ''; setRating(5);
+        new bootstrap.Modal(document.getElementById('feedbackModal')).show();
+    }
+    function setRating(stars) {
+        document.getElementById('feedbackRating').value = stars;
+        document.querySelectorAll('#starContainer i').forEach((icon, i) => {
+            icon.className = i < stars ? 'fa-solid fa-star' : 'fa-regular fa-star';
+            icon.style.color = i < stars ? '#fbbf24' : '#cbd5e1';
+        });
+    }
+    async function submitFeedback() {
+        const id = document.getElementById('feedbackCId').innerText;
+        await updateStatus(id, 'Closed');
+        bootstrap.Modal.getInstance(document.getElementById('feedbackModal')).hide();
+        Swal.fire({
+            icon: 'success',
+            title: 'Thank You!',
+            text: 'Your feedback has been recorded and the ticket is now Closed.',
+            confirmButtonColor: '#0ea5e9'
+        });
+        loadUserData();
+    }
+
+    function startVoice() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+             return Swal.fire({ icon: 'error', title: 'Unsupported', text: 'Voice API is not supported in your browser.' });
+        }
+        const recognition = new SpeechRecognition();
+        recognition.lang = currentLang === 'mr' ? 'mr-IN' : 'en-US';
+        const icon = document.getElementById('micIcon');
+        recognition.onstart = () => icon.classList.add('recording');
+        recognition.onend = () => icon.classList.remove('recording');
+        recognition.onresult = (e) => { document.getElementById('c_desc').value += " " + e.results[0][0].transcript; };
+        recognition.start();
+    }
+    
+    document.addEventListener("DOMContentLoaded", toggleRegFields);
+</script>
+</body>
+</html>
